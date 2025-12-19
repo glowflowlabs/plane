@@ -2,17 +2,18 @@
 
 Este documento explica como configurar o roteamento no Dokploy para acessar os serviços do Plane.
 
-## Portas Internas dos Containers
+## Portas dos Containers
 
-Os containers expõem as seguintes portas **internamente** na rede Docker (não expostas no host):
+Os containers **NÃO expõem portas no host** para evitar conflitos. O Dokploy acessa os containers através da **rede interna do Docker** usando os nomes dos containers.
 
-- **web** (Frontend): porta interna `3000`
-- **admin** (Admin Panel): porta interna `3000` (serve em `/god-mode/` dentro do container)
-- **api** (Backend API): porta interna `8000`
-- **space** (Space App): porta interna `3000`
-- **live** (Live App): porta interna `3000`
+### Portas Internas (dentro da rede Docker):
+- **web/admin/space/live**: porta interna `3000`
+- **api**: porta interna `8000`
 
-**Importante**: As portas não estão expostas no host para evitar conflitos. O Dokploy acessa os containers através da rede interna do Docker usando os nomes dos containers.
+**Importante**: 
+- Nenhuma porta é exposta no host para evitar conflitos
+- O Dokploy deve acessar os containers pela rede Docker interna usando os nomes dos containers
+- Use os nomes exatos: `web`, `admin`, `api`, `space`, `live`
 
 ## Configuração no Dokploy
 
@@ -81,12 +82,16 @@ Port: 3000
 Path: /
 ```
 
+**Nota**: No Dokploy, ao configurar o reverse proxy, use o nome do container `web` como hostname. O Dokploy acessará através da rede Docker interna.
+
 #### Para o serviço Admin:
 ```
 Hostname: admin
 Port: 3000
 Path: /god-mode
 ```
+
+**Nota**: O admin serve os arquivos em `/god-mode/` dentro do container. Use o nome do container `admin` como hostname.
 
 #### Para o serviço API:
 ```
@@ -95,10 +100,13 @@ Port: 8000
 Path: /api
 ```
 
+**Nota**: Use o nome do container `api` como hostname. O Dokploy acessará através da rede Docker interna.
+
 **Importante**: 
-- Use o nome do container **exatamente como está** no docker-compose.yml
-- Não use `localhost` ou `127.0.0.1` - use o nome do container
-- O Dokploy acessará os containers através da rede Docker interna
+- Use o nome do container **exatamente como está** no docker-compose.yml (`web`, `admin`, `api`)
+- Use as portas internas (`3000` para web/admin, `8000` para api)
+- O Dokploy deve estar configurado para acessar containers do Docker Compose pela rede interna
+- Se o Dokploy não conseguir acessar, verifique se ele está na mesma rede Docker ou se precisa de configuração adicional
 
 ## Variáveis de Ambiente Necessárias
 
@@ -137,8 +145,9 @@ Se você está recebendo "Bad Gateway", verifique:
    - Não use `localhost`, `127.0.0.1`, ou o nome do projeto
 
 2. **Porta está correta?**
-   - Web/Admin/Space/Live: porta `3000`
-   - API: porta `8000`
+   - **Portas Internas**: Web/Admin/Space/Live `3000`, API `8000`
+   - Use as portas internas com o nome do container
+   - Não use `localhost` ou IP do servidor - use o nome do container
 
 3. **Container está rodando?**
    ```bash
@@ -167,9 +176,11 @@ Se você está recebendo "Bad Gateway", verifique:
    ```
 
 6. **Rede Docker:**
-   - Os containers estão na rede `plane-network`
-   - O Dokploy deve conseguir acessar essa rede
-   - Verifique: `docker network ls | grep plane`
+   - Os containers estão na rede `plane-network` (bridge)
+   - O Dokploy precisa estar na mesma rede ou ter acesso a ela
+   - Verifique a rede: `docker network ls | grep plane`
+   - Verifique se os containers estão na rede: `docker network inspect plane-network`
+   - **Solução**: Se o Dokploy não conseguir acessar, você pode precisar configurar o Dokploy para usar a rede `plane-network` ou criar um link entre as redes
 
 ### Erro 404 no Admin
 
@@ -195,6 +206,11 @@ Hostname: web
 Port: 3000
 Path: /
 ```
+
+**Se ainda der Bad Gateway, verifique:**
+1. O Dokploy está na mesma rede Docker que os containers? (`plane-network`)
+2. O nome do container está correto? (deve ser exatamente `web`)
+3. Teste a conectividade: `docker exec web curl -I http://localhost:3000`
 
 ### API não responde / Container API reiniciando
 
@@ -254,6 +270,11 @@ Hostname: api
 Port: 8000
 Path: /api
 ```
+
+**Se ainda der Bad Gateway, verifique:**
+1. O container `api` está rodando? (`docker ps | grep api`)
+2. O Dokploy está na mesma rede Docker? (`plane-network`)
+3. Teste a conectividade: `docker exec api curl -I http://localhost:8000`
 
 **Para verificar se a API está funcionando após corrigir:**
 ```bash
