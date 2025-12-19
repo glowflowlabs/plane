@@ -196,19 +196,72 @@ Port: 3000
 Path: /
 ```
 
-### API não responde
+### API não responde / Container API reiniciando
 
-Verifique se:
-1. O container `api` está rodando
-2. As migrações foram executadas (container `migrator` deve ter rodado)
-3. As variáveis de ambiente do banco de dados estão corretas
-4. O banco de dados está acessível pelo container `api`
+Se o container `api` está em estado "Restarting", verifique os logs:
+
+```bash
+docker logs api
+# ou para logs em tempo real
+docker logs -f api
+```
+
+**Problemas comuns e soluções:**
+
+1. **Falta de variáveis de ambiente essenciais:**
+   - `SECRET_KEY` - Obrigatório para Django
+   - `DATABASE_URL` ou configurações individuais do banco
+   - `REDIS_URL` - Obrigatório para cache
+   - `AWS_ACCESS_KEY_ID` e `AWS_SECRET_ACCESS_KEY` - Para MinIO/S3
+
+2. **Banco de dados não acessível:**
+   - Verifique se o container `plane-db` está rodando
+   - Verifique as variáveis `POSTGRES_USER`, `POSTGRES_DB`, `POSTGRES_PASSWORD`
+   - Teste a conexão: `docker exec api python manage.py check --database default`
+
+3. **Migrações não executadas:**
+   - Execute o container `migrator` primeiro:
+   ```bash
+   docker compose run --rm migrator
+   ```
+
+4. **Redis não acessível:**
+   - Verifique se o container `plane-redis` está rodando
+   - Configure `REDIS_URL` corretamente (ex: `redis://plane-redis:6379/0`)
+
+5. **Variáveis de ambiente mínimas necessárias:**
+   ```bash
+   # Django
+   SECRET_KEY=<sua-chave-secreta>
+   DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@plane-db:5432/${POSTGRES_DB}
+   REDIS_URL=redis://plane-redis:6379/0
+   
+   # MinIO/S3
+   AWS_ACCESS_KEY_ID=<sua-chave>
+   AWS_SECRET_ACCESS_KEY=<seu-secret>
+   AWS_S3_BUCKET_NAME=uploads
+   AWS_S3_ENDPOINT_URL=http://plane-minio:9000
+   AWS_S3_REGION_NAME=us-east-1
+   
+   # Gunicorn
+   GUNICORN_WORKERS=4
+   PORT=8000
+   ```
 
 **Configuração correta no Dokploy:**
 ```
 Hostname: api
 Port: 8000
 Path: /api
+```
+
+**Para verificar se a API está funcionando após corrigir:**
+```bash
+# Verifique se o container está rodando (não mais "Restarting")
+docker ps | grep api
+
+# Teste a API internamente
+docker exec api curl -I http://localhost:8000/api/health
 ```
 
 ## Verificação dos Containers
