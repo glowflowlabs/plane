@@ -2,81 +2,74 @@
 
 Este documento explica como configurar o roteamento no Dokploy para acessar os serviços do Plane.
 
-## Portas dos Serviços
+## Portas Internas dos Containers
 
-Os containers expõem as seguintes portas:
+Os containers expõem as seguintes portas **internamente** na rede Docker (não expostas no host):
 
-- **web** (Frontend): `3000` → Acessível em `http://seu-dominio.com` ou `http://seu-dominio.com:3000`
-- **admin** (Admin Panel): `3001` → Acessível em `http://seu-dominio.com:3001` ou `http://seu-dominio.com/god-mode`
-- **api** (Backend API): `8000` → Acessível em `http://seu-dominio.com:8000` ou `http://seu-dominio.com/api`
-- **space** (Space App): `3002` → Acessível em `http://seu-dominio.com:3002` ou `http://seu-dominio.com/spaces`
-- **live** (Live App): `3003` → Acessível em `http://seu-dominio.com:3003` ou `http://seu-dominio.com/live`
+- **web** (Frontend): porta interna `3000`
+- **admin** (Admin Panel): porta interna `3000` (serve em `/god-mode/` dentro do container)
+- **api** (Backend API): porta interna `8000`
+- **space** (Space App): porta interna `3000`
+- **live** (Live App): porta interna `3000`
+
+**Importante**: As portas não estão expostas no host para evitar conflitos. O Dokploy acessa os containers através da rede interna do Docker usando os nomes dos containers.
 
 ## Configuração no Dokploy
 
-### Opção 1: Usar Portas Diretas (Mais Simples)
+O Dokploy gerencia o roteamento através da rede interna do Docker Compose. Configure o reverse proxy do Dokploy usando os **nomes dos containers** e **portas internas**:
 
-No Dokploy, configure os serviços para acessar diretamente pelas portas:
-
-1. **Web (Frontend Principal)**
-   - Container: `web`
-   - Porta: `3000`
-   - URL: `http://seu-dominio.com:3000`
-
-2. **Admin Panel**
-   - Container: `admin`
-   - Porta: `3001`
-   - URL: `http://seu-dominio.com:3001`
-   - **Nota**: O admin está configurado para servir em `/god-mode/` dentro do container
-
-3. **API**
-   - Container: `api`
-   - Porta: `8000`
-   - URL: `http://seu-dominio.com:8000` ou configure um subdomínio como `api.seu-dominio.com`
-
-### Opção 2: Configurar Reverse Proxy no Dokploy (Recomendado)
-
-Configure o reverse proxy do Dokploy para rotear corretamente:
-
-#### Roteamento Principal (Web)
+### Roteamento Principal (Web)
 ```
+Container Name: web
+Internal Port: 3000
 Path: /
-Target: web:3000
 ```
 
-#### Roteamento Admin
+### Roteamento Admin
 ```
+Container Name: admin
+Internal Port: 3000
 Path: /god-mode
-Target: admin:3000
 ```
 
-**Importante**: O admin serve os arquivos em `/god-mode/` dentro do container, então você precisa:
-- Acessar via `http://seu-dominio.com/god-mode/` OU
-- Configurar o Dokploy para rotear `/god-mode` para o container `admin` na porta `3000`
+**Importante**: O admin serve os arquivos em `/god-mode/` dentro do container. Configure o Dokploy para rotear `/god-mode` para o container `admin` na porta interna `3000`.
 
-#### Roteamento API
+### Roteamento API
 ```
+Container Name: api
+Internal Port: 8000
 Path: /api
-Target: api:8000
 ```
 
 Ou configure um subdomínio:
 ```
 Subdomain: api
-Target: api:8000
+Container Name: api
+Internal Port: 8000
 ```
 
-#### Roteamento Space
+### Roteamento Space
 ```
+Container Name: space
+Internal Port: 3000
 Path: /spaces
-Target: space:3000
 ```
 
-#### Roteamento Live
+### Roteamento Live
 ```
+Container Name: live
+Internal Port: 3000
 Path: /live
-Target: live:3000
 ```
+
+## Como Configurar no Dokploy
+
+No Dokploy, ao configurar o roteamento:
+
+1. Use o **nome do container** (ex: `web`, `admin`, `api`) como hostname
+2. Use a **porta interna** do container (ex: `3000`, `8000`)
+3. O Dokploy acessará os containers através da rede interna do Docker Compose
+4. Não é necessário expor portas no host - o Dokploy gerencia isso automaticamente
 
 ## Variáveis de Ambiente Necessárias
 
@@ -108,17 +101,14 @@ Consulte `apps/api/.env.example` para todas as variáveis necessárias da API Dj
 
 ### Erro 404 no Admin
 
-O admin está configurado para servir em `/god-mode/`. Se você está acessando diretamente pela porta `3001`, tente:
-- `http://seu-dominio.com:3001/god-mode/`
-
-Ou configure o reverse proxy do Dokploy para rotear `/god-mode` para `admin:3000`.
+O admin está configurado para servir em `/god-mode/`. Configure o Dokploy para rotear `/god-mode` para o container `admin` na porta interna `3000`.
 
 ### Erro 404 no Web
 
 Verifique se:
 1. O container `web` está rodando: `docker ps | grep web`
-2. A porta 3000 está acessível
-3. O reverse proxy está configurado corretamente
+2. O reverse proxy do Dokploy está configurado para rotear para `web:3000`
+3. O nome do container está correto no Dokploy (deve ser exatamente `web`)
 
 ### API não responde
 
