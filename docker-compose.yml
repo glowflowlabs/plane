@@ -1,3 +1,8 @@
+networks:
+  default:
+    name: plane-network
+    driver: bridge
+
 services:
   web:
     container_name: web
@@ -7,6 +12,8 @@ services:
       args:
         DOCKER_BUILDKIT: 1
     restart: always
+    networks:
+      - default
     depends_on:
       - api
 
@@ -18,6 +25,8 @@ services:
       args:
         DOCKER_BUILDKIT: 1
     restart: always
+    networks:
+      - default
     depends_on:
       - api
       - web
@@ -30,6 +39,8 @@ services:
       args:
         DOCKER_BUILDKIT: 1
     restart: always
+    networks:
+      - default
     depends_on:
       - api
       - web
@@ -43,6 +54,8 @@ services:
         DOCKER_BUILDKIT: 1
     restart: always
     command: ./bin/docker-entrypoint-api.sh
+    networks:
+      - default
     depends_on:
       - plane-db
       - plane-redis
@@ -96,12 +109,16 @@ services:
       args:
         DOCKER_BUILDKIT: 1
     restart: always
+    networks:
+      - default
 
   plane-db:
     container_name: plane-db
     image: postgres:15.7-alpine
     restart: always
     command: postgres -c 'max_connections=1000'
+    networks:
+      - default
     volumes:
       - pgdata:/var/lib/postgresql/data
     environment:
@@ -114,6 +131,8 @@ services:
     container_name: plane-redis
     image: valkey/valkey:7.2.11-alpine
     restart: always
+    networks:
+      - default
     volumes:
       - redisdata:/data
 
@@ -121,6 +140,8 @@ services:
     container_name: plane-mq
     image: rabbitmq:3.13.6-management-alpine
     restart: always
+    networks:
+      - default
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
@@ -133,6 +154,8 @@ services:
     image: minio/minio
     restart: always
     command: server /export --console-address ":9090"
+    networks:
+      - default
     volumes:
       - uploads:/export
     environment:

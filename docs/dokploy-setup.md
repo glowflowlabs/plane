@@ -64,12 +64,41 @@ Path: /live
 
 ## Como Configurar no Dokploy
 
-No Dokploy, ao configurar o roteamento:
+No Dokploy, ao configurar o roteamento do reverse proxy:
 
-1. Use o **nome do container** (ex: `web`, `admin`, `api`) como hostname
-2. Use a **porta interna** do container (ex: `3000`, `8000`)
-3. O Dokploy acessará os containers através da rede interna do Docker Compose
-4. Não é necessário expor portas no host - o Dokploy gerencia isso automaticamente
+### Configuração Básica
+
+1. **Hostname/Target**: Use o **nome exato do container** (ex: `web`, `admin`, `api`)
+2. **Porta**: Use a **porta interna** do container (ex: `3000`, `8000`)
+3. **Rede**: Os containers estão na rede `plane-network` (bridge)
+
+### Exemplo de Configuração no Dokploy
+
+#### Para o serviço Web (Frontend):
+```
+Hostname: web
+Port: 3000
+Path: /
+```
+
+#### Para o serviço Admin:
+```
+Hostname: admin
+Port: 3000
+Path: /god-mode
+```
+
+#### Para o serviço API:
+```
+Hostname: api
+Port: 8000
+Path: /api
+```
+
+**Importante**: 
+- Use o nome do container **exatamente como está** no docker-compose.yml
+- Não use `localhost` ou `127.0.0.1` - use o nome do container
+- O Dokploy acessará os containers através da rede Docker interna
 
 ## Variáveis de Ambiente Necessárias
 
@@ -99,9 +128,59 @@ Consulte `apps/api/.env.example` para todas as variáveis necessárias da API Dj
 
 ## Troubleshooting
 
+### Bad Gateway (502)
+
+Se você está recebendo "Bad Gateway", verifique:
+
+1. **Nome do container está correto?**
+   - No Dokploy, use exatamente: `web`, `admin`, `api`, `space`, ou `live`
+   - Não use `localhost`, `127.0.0.1`, ou o nome do projeto
+
+2. **Porta está correta?**
+   - Web/Admin/Space/Live: porta `3000`
+   - API: porta `8000`
+
+3. **Container está rodando?**
+   ```bash
+   docker ps | grep -E "web|admin|api"
+   ```
+   Você deve ver os containers `web`, `admin`, e `api` na lista
+
+4. **Container está saudável?**
+   ```bash
+   docker logs web
+   docker logs admin
+   docker logs api
+   ```
+   Verifique se há erros nos logs
+
+5. **Teste de conectividade interna:**
+   ```bash
+   # Teste se o container web responde
+   docker exec web curl -I http://localhost:3000
+   
+   # Teste se o container admin responde
+   docker exec admin curl -I http://localhost:3000
+   
+   # Teste se o container api responde
+   docker exec api curl -I http://localhost:8000
+   ```
+
+6. **Rede Docker:**
+   - Os containers estão na rede `plane-network`
+   - O Dokploy deve conseguir acessar essa rede
+   - Verifique: `docker network ls | grep plane`
+
 ### Erro 404 no Admin
 
 O admin está configurado para servir em `/god-mode/`. Configure o Dokploy para rotear `/god-mode` para o container `admin` na porta interna `3000`.
+
+**Configuração correta no Dokploy:**
+```
+Hostname: admin
+Port: 3000
+Path: /god-mode
+```
 
 ### Erro 404 no Web
 
@@ -110,6 +189,13 @@ Verifique se:
 2. O reverse proxy do Dokploy está configurado para rotear para `web:3000`
 3. O nome do container está correto no Dokploy (deve ser exatamente `web`)
 
+**Configuração correta no Dokploy:**
+```
+Hostname: web
+Port: 3000
+Path: /
+```
+
 ### API não responde
 
 Verifique se:
@@ -117,6 +203,13 @@ Verifique se:
 2. As migrações foram executadas (container `migrator` deve ter rodado)
 3. As variáveis de ambiente do banco de dados estão corretas
 4. O banco de dados está acessível pelo container `api`
+
+**Configuração correta no Dokploy:**
+```
+Hostname: api
+Port: 8000
+Path: /api
+```
 
 ## Verificação dos Containers
 
