@@ -6,6 +6,8 @@ networks:
 services:
   web:
     container_name: web
+    ports:
+    - "9000:3000"
     build:
       context: .
       dockerfile: ./apps/web/Dockerfile.web
@@ -19,6 +21,8 @@ services:
 
   admin:
     container_name: admin
+    ports:
+    - "9001:3000"
     build:
       context: .
       dockerfile: ./apps/admin/Dockerfile.admin
@@ -47,6 +51,8 @@ services:
 
   api:
     container_name: api
+    ports:
+    - "9002:8000"
     build:
       context: ./apps/api
       dockerfile: Dockerfile.api
